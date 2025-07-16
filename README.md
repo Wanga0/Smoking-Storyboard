@@ -2,7 +2,7 @@ Smoking and Health Storyboard
 
 This project is an interactive data visualization dashboard built using **R**, **Flexdashboard (storyboard layout)**, and **Plotly**.
 
-It focuses on the health impacts of smoking and vaping in Australia, using public datasets to highlight patterns in mortality, survival rates, and smoking trends.
+It explores the health impacts of smoking and vaping in Australia, using public datasets to highlight patterns in mortality, survival rates, smoking prevalence, and toxic exposure.
 
 ## 📂 Files Included
 
@@ -22,8 +22,9 @@ It focuses on the health impacts of smoking and vaping in Australia, using publi
 - R
 - Flexdashboard (`storyboard: true`)
 - Plotly
-- readxl, dplyr, tidyr, ggplot2
+- tidyverse (dplyr, tidyr, ggplot2)
+- readxl
 
 ## 🔗 View the Live Dashboard
 
-👉 [View it on RPubs]([https://rpubs.com/Wanga0/1320816)
+👉 [View it on RPubs](https://rpubs.com/Wanga0/1320816)

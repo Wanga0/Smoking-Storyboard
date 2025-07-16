@@ -26,4 +26,4 @@ It focuses on the health impacts of smoking and vaping in Australia, using publi
 
 ## 🔗 View the Live Dashboard
 
-👉 [View it on RPubs](https://rpubs.com/YourUsername/YourDashboardID)
+👉 [View it on RPubs]([https://rpubs.com/YourUsername/YourDashboardID](https://rpubs.com/Wanga0/1320816))

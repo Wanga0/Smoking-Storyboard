@@ -1,0 +1,42 @@
+/* Navbar background and title */
+.navbar {
+  background-color: #000000 !important; /* black */
+  border: none !important;
+}
+.navbar .navbar-brand {
+  color: #ffffff !important;
+}
+.navbar .nav > li > a {
+  color: #ffffff !important;
+}
+
+/* Storyboard tiles - default */
+.storyboard-nav .nav-pills > li > a {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-radius: 4px;
+  font-weight: normal;
+  font-size: 18px;                   /* bigger text */
+  text-align: center;                /* center horizontally */
+  display: flex;                     /* enable full centering */
+  justify-content: center;
+  align-items: center;
+  height: 100%;                      /* ensures vertical alignment */
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Storyboard ACTIVE tile */
+.storyboard-nav .nav-pills > li.active > a,
+.storyboard-nav .nav-pills > li.active > a:hover,
+.storyboard-nav .nav-pills > li.active > a:focus {
+  background-color: #FFA500 !important;  /* fixed (removed extra #) */
+  color: #000000 !important;             /* black text on orange */
+  font-weight: bold;
+  font-size: 18px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}

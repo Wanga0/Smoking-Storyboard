@@ -1,0 +1,630 @@
+---
+title: "The Smoking Hot Issue of Cigarettes and Vaping 🚬"
+output:
+  flexdashboard::flex_dashboard:
+    storyboard: true 
+    css: style.css
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(RColorBrewer)
+
+smoking_data <- read_excel(
+  "C:/Users/wanga/OneDrive/Documents/Work/RMIT/Y1 Sem 2/Data Visualisation and Communication/Assignment 3/Smoking data.xlsx",
+  sheet = "Table 14.1_Estimates", 
+  skip = 10) %>%
+  slice(1:5) %>%
+  rename(SmokerStatus = 1)
+
+
+colnames(smoking_data) <- c(
+  "SmokerStatus",
+  "15–17", "18–24", "25–34", "35–44", "45–54", "55–64", "65 years and over",
+  "15–24", "15–44", "25–44", "45–64", "65–74", "75 years and over",
+  "18–44", "45 years and over", "Total 18 years and over", "Total 15 years and over")
+
+
+smoking_data_clean <- smoking_data %>%
+  mutate(across(-SmokerStatus, ~ as.numeric(gsub("[^0-9.]", "", as.character(.)))))
+
+
+smoking_tidy <- smoking_data_clean %>%
+  pivot_longer(
+    cols = -SmokerStatus,
+    names_to = "AgeGroup",
+    values_to = "Estimate")
+
+drop_groups <- c(
+  "15–24", "15–44", "18–44", "25–44", "45–64",
+  "45 years and over", "65 years and over", "75 years and over",
+  "Total 15 years and over", "Total 18 years and over")
+
+smoking_plot <- smoking_tidy %>%
+  filter(
+  SmokerStatus != "Total persons aged 15 years and over",
+  SmokerStatus != "Never smoked",
+  SmokerStatus != "Ex-smoker",
+  !AgeGroup %in% drop_groups)
+
+trend <- read_excel(
+  path = "C:/Users/wanga/OneDrive/Documents/Work/RMIT/Y1 Sem 2/Data Visualisation and Communication/Assignment 3/Smoking trend.xlsx",
+  sheet = "Table 2.7",
+  range = "A50:H57") %>%
+  setNames(c("AgeGroup", "2001", "2004", "2007", "2010", "2013", "2016", "2019")) %>%
+  mutate(across(
+    .cols = -AgeGroup,
+    .fns = ~ round(as.numeric(gsub("[^0-9.]+", "", .)), 1)))
+
+colnames(trend) <- c(
+  "AgeGroup", "2001", "2004", "2007", "2010", "2013", "2016", "2019")
+
+trend_tidy <- trend %>%
+  pivot_longer(
+    cols = -AgeGroup,
+    names_to = "Year",
+    values_to = "SmokingRate")
+
+trend_tidy$Year <- as.numeric(trend_tidy$Year)
+
+p1 <- plot_ly()
+
+
+age_groups <- unique(trend_tidy$AgeGroup)
+
+for (age in age_groups) {
+  df <- filter(trend_tidy, AgeGroup == age)
+  p1 <- add_trace(
+    p1,
+    data = df,
+    x = ~Year,
+    y = ~SmokingRate,
+    type = 'scatter',
+    mode = 'lines+markers',
+    name = age,
+    visible = ifelse(age == age_groups[1], TRUE, "legendonly")
+  )
+}
+
+
+p1 <- layout(
+  p1,
+  title = "Daily Smoking Rates by Age Group (Australian Institute of Health and Welfare, 2020)",
+  xaxis = list(title = "Year"),
+  yaxis = list(title = "Smoking Rate (%)"),
+  updatemenus = list(
+    list(
+      type = "dropdown",
+      active = 0,
+      buttons = lapply(seq_along(age_groups), function(i) {
+        list(
+          method = "update",
+          args = list(
+            list(visible = sapply(seq_along(age_groups), function(j) j == i)),
+            list(title = paste("Daily Smoking Rate –", age_groups[i]))
+          ),
+          label = age_groups[i]
+        )
+      })
+    )
+  )
+)
+
+vape_data <- read_excel(
+  path = "Vapes.xlsx",
+  sheet = "Table 3.3",
+  range = "A5:D12"
+)
+
+vape_clean <- vape_data %>%
+  mutate(across(
+    .cols = -`Age group (years)`,
+    .fns = ~ as.numeric(
+      gsub("[^0-9.]+", "", 
+           ifelse(. == "n.p.", NA, .))
+    )
+  ))
+
+vape_tidy <- vape_clean %>%
+  pivot_longer(
+    cols = -`Age group (years)`,
+    names_to = "Year",
+    values_to = "VapingRate"
+  )
+
+vape_tidy <- vape_tidy %>%
+  mutate(
+    `Age group (years)` = gsub("\\(.*\\)", "", `Age group (years)`),
+    `Age group (years)` = trimws(`Age group (years)`),               
+    Year = ifelse(Year == "2022–2023", "2022", Year)                 
+  )
+
+
+vape_age_groups <- unique(vape_tidy$`Age group (years)`)
+
+vape_colors <- setNames(brewer.pal(n = length(vape_age_groups), name = "Set2"), vape_age_groups)
+
+p2 <- plot_ly()
+
+for (age in vape_age_groups) {
+  df <- filter(vape_tidy, `Age group (years)` == age)
+  p2 <- add_trace(
+    p2,
+    data = df,
+    x = ~Year,
+    y = ~VapingRate,
+    type = 'scatter',
+    mode = 'lines+markers',
+    name = age,
+    line = list(color = vape_colors[age]),
+    marker = list(color = vape_colors[age]),
+    visible = ifelse(age == vape_age_groups[1], TRUE, "legendonly")
+  )
+}
+
+p2 <- layout(
+  p2,
+  title = "E-Cigarette Use by Age Group (Australian Institute of Health and Welfare, 2024)",
+  xaxis = list(title = "Year"),
+  yaxis = list(title = "Vaping Rate (%)"),
+  width = 1100,
+  height = 500,
+  updatemenus = list(
+    list(
+      type = "dropdown",
+      active = 0,
+      buttons = lapply(seq_along(vape_age_groups), function(i) {
+        list(
+          method = "update",
+          args = list(
+            list(visible = sapply(seq_along(vape_age_groups), function(j) j == i)),
+            list(title = paste("E-Cigarette Use –", vape_age_groups[i]))
+          ),
+          label = vape_age_groups[i]
+        )
+      })
+    )
+  )
+)
+
+reasons <- read_excel(
+  path = "Vapes.xlsx",
+  sheet = "Table 3.36",
+  range = "A5:J15"
+)
+
+colnames(reasons) <- c(
+  "Reason",
+  "2016_Current", "2019_Current", "2022_Current",
+  "2016_Previous", "2019_Previous", "2022_Previous",
+  "2016_Never", "2019_Never", "2022_Never"
+)
+
+reasons_long <- reasons %>%
+  pivot_longer(
+    cols = -Reason,
+    names_to = "Group_Year",
+    values_to = "Proportion"
+  ) %>%
+  separate(Group_Year, into = c("Year", "Group"), sep = "_") %>%
+  mutate(
+    Proportion = suppressWarnings(as.numeric(gsub("[^0-9.]+", "", Proportion))),
+    Year = as.numeric(Year)
+  ) %>%
+  filter(!is.na(Proportion))
+
+
+slider_data <- reasons_long %>% 
+  filter(Group == "Current")
+
+
+p3 <- plot_ly(
+  data        = slider_data,
+  x           = ~Proportion,
+  y           = ~reorder(Reason, Proportion),
+  frame       = ~Year,
+  type        = "bar",
+  orientation = "h",
+  marker      = list(
+    color = "rgba(55, 128, 191, 0.7)",
+    line  = list(color = "rgba(55, 128, 191, 1.0)", width = 2)
+  ),
+  showlegend  = FALSE      
+) %>%
+  layout(
+    title      = "Reasons for Vaping Among Current Smokers (Australian Institute of Health and Welfare, 2024)",
+    xaxis      = list(title = "Proportion (%)", range = c(0, 70)),
+    yaxis      = list(title = "Reason", automargin = TRUE),
+    showlegend = FALSE      
+  ) %>%
+  animation_opts(
+    frame      = 1200,
+    transition = 300,
+    redraw     = TRUE
+  )
+
+mortality <- read_csv("Mortality.csv", skip = 8)
+
+mortality_filtered <- mortality %>%
+  filter(!`Age Group` %in% c("[0]", "[1-4]", "[5-9]", "[10-14]"))
+
+mortality_cleaned <- mortality_filtered %>%
+  select(
+    -`Sex`,
+    -`Indicator Code`,
+    -`Indicator Name`,
+    -`Age group code`,
+    -`Age-standardized death rate per 100 000 standard population`,
+    -`Number`,
+    -`Percentage of cause-specific deaths out of total deaths`
+  ) %>%
+  mutate(
+    `Age Group` = gsub("\\[|\\]", "", `Age Group`),
+    `Age Group` = factor(`Age Group`, levels = unique(`Age Group`)),
+    Year = as.numeric(Year)
+  ) %>%
+  filter(Year >= 2012, Year <= 2023)
+
+p4 <- plot_ly(
+  data = mortality_cleaned,
+  x = ~`Age Group`,
+  y = ~`Death rate per 100 000 population`,
+  color = ~`Age Group`,
+  frame = ~Year,
+  type = 'bar',
+  text = ~paste(
+    "Year:", Year,
+    "<br>Age Group:", `Age Group`,
+    "<br>Death Rate:", round(`Death rate per 100 000 population`, 2)
+  ),
+  hoverinfo = 'text'
+) %>%
+  layout(
+    title = "Lung Cancer Death Rate by Age Group (World Health Organization, 2024) ",
+    xaxis = list(title = "Age Group"),
+    yaxis = list(title = "Deaths per 100,000")
+  )
+
+survival_data <- read_excel("Survival.xlsx", sheet = "Table S10i.1")
+
+rows_to_keep <- c(28964, 28974, 28984, 28994, 29004, 29014, 29024, 29034, 29044, 29054)
+
+survival_subset <- survival_data[rows_to_keep, ] %>%
+  select(
+    `Time period` = 2,
+    Sex = 3,
+    `Age Group` = 4,
+    `Years after diagnosis` = 5,
+    `Survival %` = 8
+  ) %>%
+  mutate(
+    `Years after diagnosis` = as.numeric(`Years after diagnosis`),
+    `Survival %` = round(as.numeric(`Survival %`) * 100, 2)
+  )
+
+survival_subset$`Time period` <- factor(survival_subset$`Time period`, levels = unique(survival_subset$`Time period`))
+
+steps <- lapply(levels(survival_subset$`Time period`), function(tp) {
+  list(
+    label = tp,
+    method = "animate",
+    args = list(
+      list(tp),
+      list(mode = "immediate",
+           frame = list(duration = 0, redraw = TRUE),
+           transition = list(duration = 0))
+    )
+  )
+})
+
+p5 <- plot_ly(
+  data = survival_subset,
+  x = ~`Years after diagnosis`,
+  y = ~`Survival %`,
+  color = ~Sex,
+  colors = "Set1",
+  type = 'scatter',
+  mode = 'lines+markers',
+  frame = ~`Time period`,
+  text = ~paste("Sex:", Sex,
+                "<br>Survival %:", `Survival %`,
+                "<br>Years:", `Years after diagnosis`),
+  hoverinfo = 'text'
+) %>%
+  layout(
+    title = "Survival Rate by Years After Lung Cancer Diagnosis between 2006-2020 (Cancer Data in Australia, Data, 2024)",
+    xaxis = list(title = "Years After Diagnosis"),
+    yaxis = list(title = "Survival %"),
+    showlegend = TRUE,
+    updatemenus = list()  
+  ) %>%
+  animation_opts(
+    frame = 0,
+    redraw = TRUE,
+    mode = "immediate",
+    transition = 0
+  )
+
+
+urine_data <- read_excel("Urine.xlsx")
+
+urine_tidy <- urine_data %>%
+  pivot_longer(
+    cols = -`Hazardous Compound (ng/mg creatinine)`,  
+    names_to = "User Type",
+    values_to = "Median Value"
+  ) %>%
+  rename(Compound = `Hazardous Compound (ng/mg creatinine)`)
+
+compound_list <- split(urine_tidy, urine_tidy$Compound)
+
+frames <- lapply(names(compound_list), function(comp) {
+  list(
+    name = comp,
+    data = list(
+      list(
+        type = "bar",
+        x = compound_list[[comp]]$`User Type`,
+        y = compound_list[[comp]]$`Median Value`,
+        marker = list(color = "#1f77b4")
+      )
+    ),
+    layout = list(
+      yaxis = list(title = "Median (ng/mg of creatinine)",
+                   range = c(0, max(compound_list[[comp]]$`Median Value`, na.rm = TRUE) * 1.1))
+    )
+  )
+})
+
+p6 <- plot_ly(
+  type = 'bar',
+  x = compound_list[[1]]$`User Type`,
+  y = compound_list[[1]]$`Median Value`,
+  marker = list(color = "#1f77b4")
+) %>%
+  layout(
+    title = "Median Urinary Hazardous Compounds by User Type (Marques et al., 2021)",
+    xaxis = list(title = "User Type"),
+    yaxis = list(title = "Median (ng/mg of creatinine)",
+                 range = c(0, max(compound_list[[1]]$`Median Value`, na.rm = TRUE) * 1.1)),
+    updatemenus = list(
+      list(
+        type = "dropdown",
+        active = 0,
+        buttons = lapply(names(compound_list), function(comp) {
+          list(
+            method = "animate",
+            args = list(list(comp), list(mode = "immediate", frame = list(duration = 0, redraw = TRUE))),
+            label = comp
+          )
+        })
+      )
+    )
+  ) %>%
+  animation_opts(frame = 0, redraw = TRUE) %>%
+  config(displayModeBar = TRUE) %>%
+  plotly::plotly_build()
+
+p6$x$frames <- frames
+```
+
+
+### The story 📖
+
+<div style="text-align: center; margin-top: 0px; margin-bottom: 20px;">
+  <img src="plain-packaging.jpg" 
+       style="width:400px; height:400;" />
+</div>
+
+<h2 style="text-align: center; font-size:28px; margin-bottom:20px;">Why does this matter to me?</h2>
+
+
+<div style="font-size:16px; line-height:1.6; padding:10px;">
+
+ - As someone who is asthmatic and has respiratory issues, walking by a smoker is a nightmare come true. What's worse, my father was a smoker, so the constant lingering smoke in the household when he walked into the house really caused me issues. I remember coughing, struggling to breathe, trying to hide it so he wouldn’t feel bad. 
+ 
+ - At a young age, I began to understand the damage smoking could cause from the air I was forced to breathe. I started hiding his cigarette packs, my silent protest.
+ 
+ - The largest recorded thunderstorm asthma event globally occurred in Melbourne in 2016. It took a severe asthma attack in 2016 for my father to give up smoking. Realising the consequences of smoking, as well as the respiratory struggles that come with it, he gave up smoking in a heartbeat.
+ 
+ - I know that my experience is not unique, with many other people experiencing respiratory issues as well as asthma attacks.
+ 
+ - Seeing that transformation sparked something in me. I wanted to know more. 
+ 
+ <h2 style="text-align: center; font-size:32px; margin-bottom:20px;">Here's what i found.</h2>
+ 
+ </div>
+ 
+### Who's smoking cigarettes? 🚬
+
+
+<div style="font-size:16px; line-height:1.6; padding:10px;">
+
+- As I dug into the data, I started to see patterns that mirrored my own story.
+ 
+- Most smokers in Australia are between 25 and 64 years old. But what really caught my attention was this: in 2022, around 20,000 Australians aged 15–17 were already smoking. 15,000 of them smoked daily. I couldn’t stop thinking about how young that is.
+
+- Moreover, the 18–24 age group showed a big gap between occasional and daily smokers. These are social smokers, experimenting with cigarettes. However, this is an opportunity for intervention, before it is too late. Before it becomes a daily independence. 
+
+- Then I questioned, what if we had better warnings? Or what if our younger generation were a lot more aware?
+ 
+ </div>
+ 
+ 
+ 
+```{r}
+p <- ggplot(
+  smoking_plot,
+  aes(x = AgeGroup, y = Estimate, fill = SmokerStatus)
+) +
+  geom_col(position = "dodge") +
+  scale_fill_brewer(
+    palette = "Set2",
+    name    = "Smoker Status"
+  ) +
+  labs(
+    title = "Smoking Status by Age Group (Australian Bureau of Statistics, 2023)",
+    x     = "Age Group",
+    y     = "Estimated Population ('000s)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title  = element_text(face = "bold", size = 14)
+  )
+
+htmltools::div(
+  style = "margin: 0 auto; width: 1100px;",   
+  ggplotly(p, width = 1300, height = 420)     
+)
+
+```
+
+### Lung cancer mortality ⚰️
+
+- Looking deeper, the consequences of smoking became clear.
+
+- It is estimated that cigarette smoking explains almost 90% of lung cancer risk in men and 70 to 80% in women (Walser et al., 2008). In 2022, lung cancer was the most common cause of cancer death in Australia. It is estimated that it will remain the most common cause of death from cancer in 2024 (Cancer Australia, 2025). 
+
+- Mortality from lung cancer increases with age. Each year the older age groups consistently show high death values. However, what shocked me were the deaths among people aged 15–29. It’s rare, but it’s there. People my age are dying from something that could have been prevented.
+
+```{r}
+htmltools::div(style = "margin: 0; height: 500px; width: 1700px;",p4)
+```
+
+### Lung cancer survival rate 💪
+
+- After diagnosis, the odds are grim. The 5-year survival rate for men with lung cancer is only 15%, with women it is 23%. Most people do not survive beyond a few years after they find out. 
+
+- These numbers are frightening. This isn't just about addiction, this is about death. 
+
+- This was evident, nothing could change my mind: the best way to survive lung cancer is to never get it. And that starts by never picking up a cigarette.
+
+
+```{r}
+htmltools::div(style = "margin: 0; height: 500px; width: 1600px;",p5)
+```
+
+
+
+### Does Plain Packaging work? 📦
+
+- In late 2012, Australia enforced a rebrand, plain packaging for cigarettes. Just grim images, warnings and dull colours.  
+
+- Smoking rates were already falling, but after plain packaging, they dropped even more. In fact, 25% of the decline was thanks to this simple change. 
+
+- However, in 2015, smoking among 14–17-year-olds crept up again. Maybe it was social media. Maybe it was high school peer pressure. The overall decrease was a step forward, but progress comes with consistent push. 
+
+
+
+
+
+```{r}
+htmltools::div(style = "margin: 0; height: 500px; width: 1700px;",p1) 
+```
+
+### The Rise of Vaping 📈🧪
+
+- Just as cigarette use began to fall, something new began to rise. 
+
+- Vapes. Sleek, flavoured, marketed as safer. It was originally designed to help people quit smoking, but it became a fad, falling into the wrong hands of the younger generation. 
+
+- According to Australian Institute of Health and Welfare (2024), vape use rocketed. What's most concerning was the age group with most use: teenagers. Wasn't plain packaging supposed to deter them from smoking? 
+
+
+```{r}
+htmltools::div(style = "margin: 0 auto; width: 1100px;",p2)
+```
+
+
+### But why the rise of vaping? 🤔
+
+- So I asked: why are so many turning to vapes?
+
+- Originally, they were predominately used to quit smoking. But as time shifted, that purpose changed. By 2022, fewer people cited quitting as a reason for vape use. but rather flavourful fun and social acceptance. 
+
+
+```{r}
+htmltools::div(style = "margin: 0; height: 500px; width: 1700px;",p3) 
+```
+
+
+### Are vapes really "better"? ⚖️
+ 
+- They say vaping is safer. But it isn't. 
+
+- Data shows that people who vape still absorb harmful chemicals, just less than cigarette users. Dual users of cigarettes and vapes, are most exposed to harmful toxins. 
+
+- Capturing urine is a great way to see what the body has been exposed to. To sum, these compounds have significant health implications, ranging from increased cardiovascular, respiratory and carcinogenic risks to impairment of nerve and cell function.  
+
+- So no, vaping is not safe nor better. It's still dangerous, and what's even more skin crawling, is that it's pulling in a new generation. 
+
+```{r}
+htmltools::div(style = "margin: 0; height: 450px; width: 1600px;",p6) 
+```
+
+
+### What's next? 🔮
+
+- Looking back, the picture couldn't be any more clear.
+
+- Smoking causes 90% of lung cancer cases. Lung cancer kills more Australians than any other cancer. A large proportion of people diagnosed with lung cancer do not survive past 5 years.
+
+- Plain packaging helped, but vapes entered the topic. They are trending for multiple reasons but they still cause harm.
+
+- Most disturbing is that young Australians are being targeted, and future generations will be susceptible. 
+
+<h2 style="text-align: center; font-size:28px; margin-bottom:20px;">What's next?</h2>
+
+- This isn't just statistics. This meant something to me. I've experienced second hand smoke. I've seen my father go through a near death experience. Now a whole generation is at risk.
+
+- We need to act, act before young people are taking their first vape. Campaigns are required, to make them understand the risk. Warnings that scare. Prevention is our strongest weapon and we need to utilise it now. No one should have to grow up dreading the thought of lung cancer because of social acceptance.
+
+<div style="text-align: center; margin-top: 0px; margin-bottom: 20px;">
+  <img src="no-smoke.webp" 
+       style="width:300px; height:150;" />
+</div>
+
+
+
+### References 📚
+
+<h2 style="text-align: center; font-size:32px; margin-bottom:20px;">References</h2>
+
+- Australian Bureau of Statistics. (2023, December 15). Smoking and vaping, 2022 | Australian Bureau of Statistics. Www.abs.gov.au. https://www.abs.gov.au/statistics/health/health-conditions-and-risks/smoking-and-vaping/latest-release
+
+- Australian Institute of Health and Welfare. (2020, July 16). National Drug Strategy Household Survey 2019, Data. Australian Institute of Health and Welfare. https://www.aihw.gov.au/reports/illicit-use-of-drugs/national-drug-strategy-household-survey-2019/data
+
+- Australian Institute of Health and Welfare. (2024). Australia’s health 2024: Data insights: Electronic cigarette use (vaping) in australia in 2022–2023. Australian Institute of Health and Welfare. https://www.aihw.gov.au/reports/australias-health/vaping-e-cigarettes
+
+- Australian Institute of Health and Welfare. (2024b, February 29). National Drug Strategy Household Survey 2022–2023, Data. Australian Institute of Health and Welfare. https://www.aihw.gov.au/reports/illicit-use-of-drugs/national-drug-strategy-household-survey/data
+
+- Cancer Australia. (2025). Lung cancer in Australia statistics. Cancer Australia. https://www.canceraustralia.gov.au/cancer-types/lung-cancer/lung-cancer-australia-statistics
+
+- Cancer Council. (2020). Plain packaging - A landmark victory against Big Tobacco. Www.cancer.org.au; Cancer Council. https://www.cancer.org.au/about-us/how-we-help/prevention/stories/plain-packaging
+
+- Cancer data in Australia, Data. (2024, December 9). Australian Institute of Health and Welfare. https://www.aihw.gov.au/reports/cancer/cancer-data-in-australia/data
+
+- flexdashboard: Easy interactive dashboards for R. (n.d.). Rmarkdown.rstudio.com. https://rmarkdown.rstudio.com/flexdashboard/
+
+- htmlwidgets: Plotly. (2016). Htmlwidgets.org. https://www.htmlwidgets.org/showcase_plotly.html
+
+- Marques, P., Piqueras, L., & Sanz, M.-J. (2021). An Updated Overview of e-cigarette Impact on Human Health. Respiratory Research, 22(1). https://doi.org/10.1186/s12931-021-01737-5
+
+- Plotly. (n.d.). Plotly R Graphing Library. Plotly.com. https://plotly.com/r/
+
+- RPubs. (n.d.). Rpubs.com. https://rpubs.com 
+
+- Using flexdashboard. (n.d.). Rstudio.github.io. https://rstudio.github.io/flexdashboard/articles/using.html
+
+- Walser, T., Cui, X., Yanagawa, J., Lee, J. M., Heinrich, E., Lee, G., Sharma, S., & Dubinett, S. M. (2008). Smoking and Lung Cancer: The Role of Inflammation. Proceedings of the American Thoracic Society, 5(8), 811–815. https://doi.org/10.1513/pats.200809-100th
+
+- World Health Organization. (2024). Australia data | World Health Organization. Data.who.int. https://data.who.int/countries/036
+
